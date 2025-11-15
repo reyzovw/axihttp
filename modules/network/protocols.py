@@ -1,5 +1,5 @@
 from typing import Dict, Tuple, Optional, Literal
-from modules.network.response import Response
+from modules.network.response import Response, RawResponse
 from modules.utils import extract_url
 from collections import defaultdict
 from typing import Literal
@@ -88,15 +88,18 @@ class NetworkProtocol:
                 f"Host: {host}",
                 "Connection: keep-alive",
                 "User-Agent: AxiHTTP/1.0",
-                "Accept: */*",
+                "Accept: */*"
             ]
 
             if headers:
                 for key, value in headers.items():
                     request_lines.append(f"{key}: {value}")
             if json_data:
-                # если есть тело, но заголовков нет
-                request_lines.append("Content-Type: application/json")
+                if "Content-Type" not in headers and "content-type" not in headers and method == "POST":
+                    request_lines.append("Content-Type: application/json")
+                elif "Content-Type" not in headers and "content-type" not in headers and method == "GET":
+                    request_lines.append("Content-Type: */*")
+
                 request_lines.append(f"Content-Length: {len(json_data)}")
 
             request_lines.extend(["", ""])
@@ -131,8 +134,7 @@ class NetworkProtocol:
                 except asyncio.TimeoutError:
                     pass
 
-            response = headers + body
-            return response
+            return RawResponse(body, headers)
 
         except Exception as e:
             writer.close()

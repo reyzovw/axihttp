@@ -2,39 +2,51 @@ from modules.exceptions.base import *
 from typing import Dict, Literal
 import json
 
+class RawResponse:
+    def __init__(self, raw_response_body: bytes, raw_headers_body: bytes):
+        """
+        Класс для нормализации сырых данных полученных в результате запроса
+        :param raw_response_body: Сырой ответ
+        :param raw_headers_body: Сырые заголовки
+        """
+        self.__response_body: bytes = raw_response_body
+        self.__headers_body: bytes = raw_headers_body
+        self.status_code: int = 0
+        self.headers = self.__parse_response_headers()
+        self.response_data = self.__parse_response_payload()
+
+    def __parse_response_payload(self) -> str:
+        """
+        Грамотная распаковка Json
+        :return: Нормализованный ответ от сервера
+        """
+
+        return self.__response_body.decode('utf-8').split("\r\n")[1]
+
+    def __parse_response_headers(self) -> dict[str, str]:
+        """
+        Грамотная распаковка Headers
+        :return: Headers приведенные к Json
+        """
+        raw_data = self.__headers_body.decode('utf-8').split("\r\n")
+        self.status_code = int(raw_data[0].split(" ")[1])
+        result = {}
+
+        for line in raw_data[1:-2]:  # обрезаем окончание заголовков
+            extracted = line.split(": ", 2)
+
+            result[extracted[0]] = extracted[1]
+
+        return result
+
+
 class Response:
-    def __init__(self, raw_response: bytes, method: Literal["GET", "POST"]):
-        self.raw = raw_response
+    def __init__(self, raw_response: RawResponse, method: Literal["GET", "POST"]):
+        self.__raw_response = raw_response
         self.method = method
-        self._parse_response()
-
-    def _parse_response(self):
-        if self.method == "GET":
-            header_body = self.raw.split(b'141\r\n', 1)
-        elif self.method == "POST":
-            header_body = self.raw.split(b'\r\n\r\n1ad', 1)
-
-        headers_part = header_body[0]
-        self.body = header_body[1] if len(header_body) > 1 else b""
-
-        headers_lines = headers_part.split(b'\r\n')
-        status_line = headers_lines[0].decode()
-        self.http_version, status_code, self.reason = status_line.split(' ', 2)
-        self.status_code = int(status_code)
-
-        self.headers = {}
-        for line in headers_lines[1:]:
-            if b':' in line:
-                key, value = line.split(b':', 1)
-                self.headers[key.strip().decode()] = value.strip().decode()
-
-    @property
-    def content(self) -> bytes:
-        return self.body
-
-    @property
-    def text(self) -> str:
-        return self.body.decode('utf-8').replace("\r\n0\r\n\r\n", "")
+        self.headers = self.__raw_response.headers
+        self.text = raw_response.response_data
+        self.status_code = self.__raw_response.status_code
 
     def json(self) -> Dict:
         try:
