@@ -1,14 +1,19 @@
-from typing import Dict
-import email
-import email.policy
+from modules.exceptions.base import *
+from typing import Dict, Literal
+import json
 
 class Response:
-    def __init__(self, raw_response: bytes):
+    def __init__(self, raw_response: bytes, method: Literal["GET", "POST"]):
         self.raw = raw_response
+        self.method = method
         self._parse_response()
 
     def _parse_response(self):
-        header_body = self.raw.split(b'\r\n\r\n', 1)
+        if self.method == "GET":
+            header_body = self.raw.split(b'141\r\n', 1)
+        elif self.method == "POST":
+            header_body = self.raw.split(b'\r\n\r\n1ad', 1)
+
         headers_part = header_body[0]
         self.body = header_body[1] if len(header_body) > 1 else b""
 
@@ -29,11 +34,14 @@ class Response:
 
     @property
     def text(self) -> str:
-        return self.body.decode('utf-8')
+        return self.body.decode('utf-8').replace("\r\n0\r\n\r\n", "")
 
     def json(self) -> Dict:
-        import json
-        return json.loads(self.text)
+        try:
+            return json.loads(self.text)
+        except json.JSONDecodeError as e:
+            raise JsonNotFoundError(self.headers['Content-Type'], e)
 
     def __repr__(self) -> str:
         return f"<Response [{self.status_code}]>"
+
