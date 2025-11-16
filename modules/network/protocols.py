@@ -1,8 +1,8 @@
-from typing import Dict, Tuple, Optional, Literal
+from modules.exceptions.base import SocketEstablishedError
 from modules.network.response import Response, RawResponse
+from typing import Literal, Dict, Tuple
 from modules.utils import extract_url
 from collections import defaultdict
-from typing import Literal
 import asyncio
 import json
 import ssl
@@ -10,10 +10,20 @@ import ssl
 
 class ConnectionPool:
     def __init__(self):
+        """
+        Connection pool
+        """
         self.__pool: Dict[Tuple[str, int, bool], asyncio.Queue] = defaultdict(asyncio.Queue)
         self._max_size = 10
 
     async def get_connection(self, host: str, port: int, use_ssl: bool) -> Tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+        """
+        Получает соединение
+        :param host: Адрес
+        :param port: Порт
+        :param use_ssl: Использовать SSL шифрование
+        :return: StreamReader, StreamWriter
+        """
         key = (host, port, use_ssl)
 
         if not self.__pool[key].empty():
@@ -33,6 +43,14 @@ class ConnectionPool:
         return reader, writer
 
     async def return_connection(self, host: str, port: int, use_ssl: bool, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+        """
+        Возвращает конкретное соединение
+        :param host: Адрес
+        :param port: Порт
+        :param use_ssl: Использовать SSL шифрование
+        :param reader: StreamReader
+        :param writer: StreamWriter
+        """
         key = (host, port, use_ssl)
 
         if writer.is_closing():
@@ -45,6 +63,10 @@ class ConnectionPool:
             await writer.wait_closed()
 
     async def close_all(self):
+        """
+        Закрывает все соединения
+        """
+
         for queue in self.__pool.values():
             while not queue.empty():
                 reader, writer = await queue.get()
@@ -139,7 +161,7 @@ class NetworkProtocol:
         except Exception as e:
             writer.close()
             await writer.wait_closed()
-            raise Exception(f"Network error: {e}")
+            raise SocketEstablishedError()
         finally:
             if 'writer' in locals() and not writer.is_closing():
                 await self.__pool.return_connection(host, port, use_ssl, reader, writer)

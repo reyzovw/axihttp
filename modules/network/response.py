@@ -42,6 +42,11 @@ class RawResponse:
 
 class Response:
     def __init__(self, raw_response: RawResponse, method: Literal["GET", "POST"]):
+        """
+        Класс в котором содержится данные ответа от сервера
+        :param raw_response: Сырые данные RawResponse
+        :param method: Метод запроса
+        """
         self.__raw_response = raw_response
         self.method = method
         self.headers = self.__raw_response.headers

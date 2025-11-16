@@ -9,7 +9,7 @@ async def main():
             url="https://example.com",
         )
 
-        print(response.json())
+        print(response.text)
 
 if __name__ == '__main__':
     asyncio.run(main())

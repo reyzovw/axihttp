@@ -10,3 +10,11 @@ class JsonNotFoundError(AxiHTTPException):
         super().__init__(message, original_exception)
         self.content_type = content_type
 
+
+class SocketEstablishedError(AxiHTTPException):
+    """Исключение говорит о том, что сайт не может установить с вами соединение"""
+    def __init__(self):
+        message = f"Cannot established socket connection"
+        super().__init__(message)
+
+
